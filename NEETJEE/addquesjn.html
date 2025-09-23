@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ABC School - Add Question</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #6a11cb, #2575fc);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: rgba(0, 0, 0, 0.7);
+      padding: 20px;
+      border-radius: 15px;
+      width: 90%;
+      max-width: 700px;
+      text-align: center;
+    }
+    input, select, button {
+      padding: 10px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 8px;
+      width: 90%;
+    }
+    button {
+      background: #2575fc;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #6a11cb;
+    }
+    .hidden {
+      display: none;
+    }
+    ul {
+      list-style: none;
+      padding-left: 0;
+      max-height: 300px;
+      overflow-y: auto;
+      text-align: left;
+    }
+    li {
+      background: #444;
+      margin-bottom: 10px;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    li button {
+      background: #d9534f;
+      border: none;
+      padding: 5px 10px;
+      margin-top: 10px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    li button:hover {
+      background: #c9302c;
+    }
+    .option-line {
+      margin-left: 15px;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h1>ABC School - Add Question</h1>
+
+  <!-- Login Form -->
+  <div id="login-container" class="container">
+    <h2>Authentication Required</h2>
+    <input type="text" id="username" placeholder="Enter Username" />
+    <input type="password" id="password" placeholder="Enter Password" />
+    <button onclick="authenticate()">Login</button>
+    <p id="login-error" style="color:red; display:none;">Invalid username or password!</p>
+  </div>
+
+  <!-- Add Question Form (hidden until login) -->
+  <div id="question-container" class="container hidden">
+    <h2>Add a Question</h2>
+    <input type="text" id="question" placeholder="Enter Question" />
+    <input type="text" id="option1" placeholder="Option 1" />
+    <input type="text" id="option2" placeholder="Option 2" />
+    <input type="text" id="option3" placeholder="Option 3" />
+    <input type="text" id="option4" placeholder="Option 4" />
+    <input type="number" id="correct" placeholder="Correct Option (0-3)" min="0" max="3" />
+
+    <!-- NEET / JEE selection -->
+    <select id="category">
+      <option value="" disabled selected>Select Category</option>
+      <option value="NEET">NEET</option>
+      <option value="JEE">JEE</option>
+    </select>
+
+    <button onclick="saveQuestion()">Save Question</button>
+    <button onclick="window.location.href='indexjn.html'">Back to Home</button>
+
+    <h3>Saved Questions</h3>
+    <ul id="questions-list"></ul>
+  </div>
+
+  <script>
+    const validUser = "admin";
+    const validPass = "12345";
+
+    function authenticate() {
+      let user = document.getElementById("username").value;
+      let pass = document.getElementById("password").value;
+
+      if (user === validUser && pass === validPass) {
+        document.getElementById("login-container").style.display = "none";
+        document.getElementById("question-container").classList.remove("hidden");
+        renderQuestions();
+      } else {
+        document.getElementById("login-error").style.display = "block";
+      }
+    }
+
+    function saveQuestion() {
+      let q = document.getElementById("question").value.trim();
+      let options = [
+        document.getElementById("option1").value.trim(),
+        document.getElementById("option2").value.trim(),
+        document.getElementById("option3").value.trim(),
+        document.getElementById("option4").value.trim(),
+      ];
+      let correct = parseInt(document.getElementById("correct").value);
+      let category = document.getElementById("category").value;
+
+      if (!q || options.some(opt => !opt) || isNaN(correct) || correct < 0 || correct > 3 || !category) {
+        alert("Please fill all fields correctly!");
+        return;
+      }
+
+      let newQuestion = { question: q, options: options, correct: correct, category: category };
+      let stored = JSON.parse(localStorage.getItem("adminQuestions")) || [];
+      stored.push(newQuestion);
+      localStorage.setItem("adminQuestions", JSON.stringify(stored));
+
+      alert("Question added successfully!");
+
+      document.getElementById("question").value = "";
+      document.getElementById("option1").value = "";
+      document.getElementById("option2").value = "";
+      document.getElementById("option3").value = "";
+      document.getElementById("option4").value = "";
+      document.getElementById("correct").value = "";
+      document.getElementById("category").value = "";
+
+      renderQuestions();
+    }
+
+    function renderQuestions() {
+      let stored = JSON.parse(localStorage.getItem("adminQuestions")) || [];
+      const list = document.getElementById("questions-list");
+      list.innerHTML = "";
+
+      if (stored.length === 0) {
+        list.innerHTML = "<li>No questions added yet.</li>";
+        return;
+      }
+
+      stored.forEach((q, index) => {
+        let optionsText = q.options
+          .map((opt, i) => {
+            const correctMark = i === q.correct ? " ✅ (Correct)" : "";
+            return `<span class="option-line">Option ${i + 1}: ${opt}${correctMark}</span>`;
+          })
+          .join("");
+
+        let li = document.createElement("li");
+        li.innerHTML = `<strong>Q${index + 1} [${q.category}]:</strong> ${q.question}<br>${optionsText}
+          <br><button onclick="deleteQuestion(${index})">Delete</button>`;
+
+        list.appendChild(li);
+      });
+    }
+
+    function deleteQuestion(index) {
+      let stored = JSON.parse(localStorage.getItem("adminQuestions")) || [];
+      stored.splice(index, 1);
+      localStorage.setItem("adminQuestions", JSON.stringify(stored));
+      renderQuestions();
+    }
+  </script>
+</body>
+</html>
