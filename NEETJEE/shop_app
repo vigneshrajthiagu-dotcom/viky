@@ -1,0 +1,198 @@
+// Flutter single-file demo app: Shop App + Admin Panel // Save as main.dart and run with flutter run. // This is a minimal, self-contained example using in-memory storage.
+
+import 'package:flutter/material.dart';
+
+void main() => runApp(ShopApp());
+
+class Product { String id; String name; String imageUrl; double price; double discount; // percentage 0-100 int searchCount;
+
+Product({ required this.id, required this.name, required this.imageUrl, required this.price, required this.discount, this.searchCount = 0, });
+
+double get discountedPrice => (price * (1 - discount / 100)); }
+
+class ShopApp extends StatefulWidget { @override _ShopAppState createState() => _ShopAppState(); }
+
+class _ShopAppState extends State<ShopApp> { // In-memory product list (starter data) List<Product> products = [ Product( id: 'p1', name: 'Stainless Steel Plate', imageUrl: 'https://via.placeholder.com/300?text=Plate', price: 250.0, discount: 10, ), Product( id: 'p2', name: 'Non-stick Kadai', imageUrl: 'https://via.placeholder.com/300?text=Kadai', price: 1200.0, discount: 15, ), Product( id: 'p3', name: 'Plastic Container Set', imageUrl: 'https://via.placeholder.com/300?text=Container', price: 350.0, discount: 5, ), ];
+
+// Simple admin PIN for demo (in real app use secure auth) final String adminPin = '1234';
+
+@override Widget build(BuildContext context) { return MaterialApp( title: 'Shop App Demo', theme: ThemeData( primarySwatch: Colors.indigo, ), home: HomeScreen( products: products, onProductsChanged: (newList) => setState(() => products = newList), adminPin: adminPin, ), ); } }
+
+// HOME SCREEN with bottom navigation class HomeScreen extends StatefulWidget { final List<Product> products; final ValueChanged<List<Product>> onProductsChanged; final String adminPin;
+
+HomeScreen({required this.products, required this.onProductsChanged, required this.adminPin});
+
+@override _HomeScreenState createState() => _HomeScreenState(); }
+
+class _HomeScreenState extends State<HomeScreen> { int _selectedIndex = 0;
+
+void _onNavTap(int index) { setState(() => _selectedIndex = index); }
+
+@override Widget build(BuildContext context) { final tabs = [ ProductsTab(products: widget.products, onProductsChanged: widget.onProductsChanged), CategoriesTab(products: widget.products), SearchTab(products: widget.products, onProductsChanged: widget.onProductsChanged), ProfileTab(adminPin: widget.adminPin, products: widget.products, onProductsChanged: widget.onProductsChanged), ];
+
+return Scaffold(
+  body: tabs[_selectedIndex],
+  bottomNavigationBar: BottomNavigationBar(
+    currentIndex: _selectedIndex,
+    onTap: _onNavTap,
+    items: [
+      BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+      BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Categories'),
+      BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
+      BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+    ],
+  ),
+);
+
+} }
+
+// PRODUCTS TAB - grid view and most searched class ProductsTab extends StatelessWidget { final List<Product> products; final ValueChanged<List<Product>> onProductsChanged;
+
+ProductsTab({required this.products, required this.onProductsChanged});
+
+@override Widget build(BuildContext context) { final mostSearched = List<Product>.from(products) ..sort((a, b) => b.searchCount.compareTo(a.searchCount));
+
+return SafeArea(
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Text('Most Searched', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      ),
+      SizedBox(
+        height: 120,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: mostSearched.length,
+          itemBuilder: (ctx, i) {
+            final p = mostSearched[i];
+            return GestureDetector(
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductDetail(product: p))),
+              child: Container(
+                width: 140,
+                margin: EdgeInsets.symmetric(horizontal: 8),
+                child: Card(
+                  child: Column(
+                    children: [
+                      Expanded(child: Image.network(p.imageUrl, fit: BoxFit.cover)),
+                      Padding(
+                        padding: const EdgeInsets.all(4.0),
+                        child: Text(p.name, overflow: TextOverflow.ellipsis),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Text('All Products', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      ),
+      Expanded(
+        child: GridView.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.75),
+          itemCount: products.length,
+          itemBuilder: (ctx, i) {
+            final p = products[i];
+            return ProductCard(product: p, onDelete: () {
+              final newList = List<Product>.from(products)..removeAt(i);
+              onProductsChanged(newList);
+            });
+          },
+        ),
+      ),
+    ],
+  ),
+);
+
+} }
+
+class ProductCard extends StatelessWidget { final Product product; final VoidCallback onDelete;
+
+ProductCard({required this.product, required this.onDelete});
+
+@override Widget build(BuildContext context) { return Card( margin: EdgeInsets.all(8), child: InkWell( onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductDetail(product: product))), child: Column( crossAxisAlignment: CrossAxisAlignment.start, children: [ AspectRatio(aspectRatio: 4 / 3, child: Image.network(product.imageUrl, fit: BoxFit.cover)), Padding( padding: const EdgeInsets.all(8.0), child: Text(product.name, style: TextStyle(fontWeight: FontWeight.bold)), ), Padding( padding: const EdgeInsets.symmetric(horizontal: 8.0), child: Row( children: [ Text('₹${product.price.toStringAsFixed(0)}', style: TextStyle(decoration: TextDecoration.lineThrough)), SizedBox(width: 8), Text('₹${product.discountedPrice.toStringAsFixed(0)}', style: TextStyle(fontWeight: FontWeight.bold)), ], ), ), Spacer(), Row( mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [ IconButton(icon: Icon(Icons.delete), onPressed: onDelete), Padding( padding: const EdgeInsets.only(right: 8.0, bottom: 8.0), child: Text('${product.discount}% off'), ), ], ) ], ), ), ); } }
+
+class ProductDetail extends StatelessWidget { final Product product; ProductDetail({required this.product});
+
+@override Widget build(BuildContext context) { return Scaffold( appBar: AppBar(title: Text(product.name)), body: Column( children: [ Image.network(product.imageUrl, height: 250, fit: BoxFit.cover), Padding( padding: const EdgeInsets.all(12.0), child: Column( crossAxisAlignment: CrossAxisAlignment.start, children: [ Text(product.name, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), SizedBox(height: 8), Row(children: [ Text('Original: ₹${product.price.toStringAsFixed(0)}', style: TextStyle(decoration: TextDecoration.lineThrough)), SizedBox(width: 12), Text('Now: ₹${product.discountedPrice.toStringAsFixed(0)}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), ]), SizedBox(height: 8), Text('Discount: ${product.discount}%'), ], ), ) ], ), ); } }
+
+// CATEGORIES TAB - placeholder class CategoriesTab extends StatelessWidget { final List<Product> products; CategoriesTab({required this.products});
+
+@override Widget build(BuildContext context) { // For demo, categories are simulated by simple chips final categories = ['Utensils', 'Kitchen', 'Plastic', 'Storage'];
+
+return SafeArea(
+  child: Column(
+    children: [
+      Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Wrap(spacing: 8, children: categories.map((c) => Chip(label: Text(c))).toList()),
+      ),
+      Expanded(
+        child: Center(child: Text('Category filtering UI goes here — adapt to your catalog')),
+      )
+    ],
+  ),
+);
+
+} }
+
+// SEARCH TAB class SearchTab extends StatefulWidget { final List<Product> products; final ValueChanged<List<Product>> onProductsChanged;
+
+SearchTab({required this.products, required this.onProductsChanged});
+
+@override _SearchTabState createState() => _SearchTabState(); }
+
+class _SearchTabState extends State<SearchTab> { String query = ''; List<Product> get results { final q = query.toLowerCase(); return widget.products.where((p) => p.name.toLowerCase().contains(q)).toList(); }
+
+void _onSearch(String val) { setState(() => query = val); }
+
+void _trackSearchHit(Product p) { p.searchCount += 1; widget.onProductsChanged(widget.products); }
+
+@override Widget build(BuildContext context) { return SafeArea( child: Column( children: [ Padding( padding: const EdgeInsets.all(12.0), child: TextField( decoration: InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search products by name', border: OutlineInputBorder()), onChanged: _onSearch, ), ), Expanded( child: ListView.builder( itemCount: results.length, itemBuilder: (ctx, i) { final p = results[i]; return ListTile( leading: Image.network(p.imageUrl, width: 56, fit: BoxFit.cover), title: Text(p.name), subtitle: Text('₹${p.discountedPrice.toStringAsFixed(0)}'), onTap: () { trackSearchHit(p); Navigator.of(context).push(MaterialPageRoute(builder: () => ProductDetail(product: p))); }, ); }, ), ) ], ), ); } }
+
+// PROFILE TAB (contains Admin login) class ProfileTab extends StatelessWidget { final String adminPin; final List<Product> products; final ValueChanged<List<Product>> onProductsChanged;
+
+ProfileTab({required this.adminPin, required this.products, required this.onProductsChanged});
+
+@override Widget build(BuildContext context) { return SafeArea( child: Center( child: Padding( padding: const EdgeInsets.all(20.0), child: Column( mainAxisSize: MainAxisSize.min, children: [ CircleAvatar(radius: 40, child: Icon(Icons.store, size: 40)), SizedBox(height: 12), Text('Shop Owner', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), SizedBox(height: 12), ElevatedButton( child: Text('Admin Login'), onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AdminLogin(pin: adminPin, products: products, onProductsChanged: onProductsChanged))), ) ], ), ), ), ); } }
+
+// ADMIN LOGIN (simple PIN) -> ADMIN DASHBOARD class AdminLogin extends StatefulWidget { final String pin; final List<Product> products; final ValueChanged<List<Product>> onProductsChanged;
+
+AdminLogin({required this.pin, required this.products, required this.onProductsChanged});
+
+@override _AdminLoginState createState() => _AdminLoginState(); }
+
+class _AdminLoginState extends State<AdminLogin> { final TextEditingController _ctrl = TextEditingController(); String? _error;
+
+void _tryLogin() { if (ctrl.text == widget.pin) { Navigator.of(context).pushReplacement(MaterialPageRoute(builder: () => AdminDashboard(products: widget.products, onProductsChanged: widget.onProductsChanged))); } else { setState(() => _error = 'Incorrect PIN'); } }
+
+@override Widget build(BuildContext context) { return Scaffold( appBar: AppBar(title: Text('Admin Login')), body: Padding( padding: const EdgeInsets.all(20.0), child: Column( children: [ TextField(controller: _ctrl, obscureText: true, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: 'Enter PIN', errorText: _error)), SizedBox(height: 12), ElevatedButton(child: Text('Login'), onPressed: _tryLogin) ], ), ), ); } }
+
+class AdminDashboard extends StatefulWidget { final List<Product> products; final ValueChanged<List<Product>> onProductsChanged; AdminDashboard({required this.products, required this.onProductsChanged});
+
+@override _AdminDashboardState createState() => _AdminDashboardState(); }
+
+class AdminDashboardState extends State<AdminDashboard> { @override Widget build(BuildContext context) { return Scaffold( appBar: AppBar(title: Text('Admin Dashboard')), body: Padding( padding: const EdgeInsets.all(12.0), child: Column( children: [ ElevatedButton.icon( icon: Icon(Icons.add), label: Text('Add Product'), onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: () => AddEditProduct(onSave: addProduct))), ), SizedBox(height: 12), Expanded( child: ListView.builder( itemCount: widget.products.length, itemBuilder: (ctx, i) { final p = widget.products[i]; return ListTile( leading: Image.network(p.imageUrl, width: 56, fit: BoxFit.cover), title: Text(p.name), subtitle: Text('₹${p.price.toStringAsFixed(0)} • ${p.discount}% off • Searched: ${p.searchCount}'), trailing: Row(mainAxisSize: MainAxisSize.min, children: [ IconButton(icon: Icon(Icons.edit), onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: () => AddEditProduct(product: p, onSave: (updated) => _editProduct(i, updated))))), IconButton(icon: Icon(Icons.delete), onPressed: () => _deleteProduct(i)), ]), ); }, ), ) ], ), ), ); }
+
+void _addProduct(Product p) { final newList = List<Product>.from(widget.products)..add(p); widget.onProductsChanged(newList); setState(() {}); }
+
+void _editProduct(int index, Product updated) { final newList = List<Product>.from(widget.products); newList[index] = updated; widget.onProductsChanged(newList); setState(() {}); }
+
+void _deleteProduct(int index) { final newList = List<Product>.from(widget.products)..removeAt(index); widget.onProductsChanged(newList); setState(() {}); } }
+
+class AddEditProduct extends StatefulWidget { final Product? product; final ValueChanged<Product> onSave; AddEditProduct({this.product, required this.onSave});
+
+@override _AddEditProductState createState() => _AddEditProductState(); }
+
+class _AddEditProductState extends State<AddEditProduct> { final _formKey = GlobalKey<FormState>(); late TextEditingController _nameCtrl; late TextEditingController _imageCtrl; late TextEditingController _priceCtrl; late TextEditingController _discountCtrl;
+
+@override void initState() { super.initState(); _nameCtrl = TextEditingController(text: widget.product?.name ?? ''); _imageCtrl = TextEditingController(text: widget.product?.imageUrl ?? 'https://via.placeholder.com/300'); _priceCtrl = TextEditingController(text: widget.product?.price.toStringAsFixed(0) ?? '0'); _discountCtrl = TextEditingController(text: widget.product?.discount.toStringAsFixed(0) ?? '0'); }
+
+@override Widget build(BuildContext context) { final isEdit = widget.product != null; return Scaffold( appBar: AppBar(title: Text(isEdit ? 'Edit Product' : 'Add Product')), body: Padding( padding: const EdgeInsets.all(12.0), child: Form( key: _formKey, child: ListView( children: [ TextFormField(controller: _nameCtrl, decoration: InputDecoration(labelText: 'Product Name'), validator: (v) => v == null || v.isEmpty ? 'Enter name' : null), SizedBox(height: 8), TextFormField(controller: _imageCtrl, decoration: InputDecoration(labelText: 'Image URL'), validator: (v) => v == null || v.isEmpty ? 'Enter image URL' : null), SizedBox(height: 8), TextFormField(controller: _priceCtrl, decoration: InputDecoration(labelText: 'Price (₹)'), keyboardType: TextInputType.number, validator: (v) => (v == null || double.tryParse(v) == null) ? 'Enter valid price' : null), SizedBox(height: 8), TextFormField(controller: _discountCtrl, decoration: InputDecoration(labelText: 'Discount (%)'), keyboardType: TextInputType.number, validator: (v) => (v == null || double.tryParse(v) == null) ? 'Enter valid discount' : null), SizedBox(height: 12), ElevatedButton( child: Text(isEdit ? 'Save Changes' : 'Add Product'), onPressed: () { if (_formKey.currentState!.validate()) { final p = Product( id: widget.product?.id ?? DateTime.now().millisecondsSinceEpoch.toString(), name: _nameCtrl.text.trim(), imageUrl: _imageCtrl.text.trim(), price: double.parse(_priceCtrl.text.trim()), discount: double.parse(_discountCtrl.text.trim()), searchCount: widget.product?.searchCount ?? 0, ); widget.onSave(p); Navigator.of(context).pop(); } }, ) ], ), ), ), ); } }
+
+// End of file
